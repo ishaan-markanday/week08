@@ -18,7 +18,8 @@ Before you begin, ensure you have the following:
 1. Create all required resources (Resource Group, Storage Account, ACR, AKS)
 2. **Azure Service Principal:** Create new Service Principal.
 3. Add new role for service principal for resource group. **More detailes about this step will be provided in seminar. Make sure you join seminar for this**.
-4. **GitHub Repository Secrets:**
+4. **GitHub Repository Secrets:**y
+
     - In your GitHub repository, go to **Settings** > **Secrets and variables** > **Actions**.
     - Click **New repository secret** for each:
       - `AZURE_CREDENTIALS`: You need separate SP with Owner permission (As done in step 3).
