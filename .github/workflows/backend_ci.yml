@@ -92,7 +92,7 @@ jobs:
   build_and_push_images:
     runs-on: ubuntu-latest
     needs: test_and_lint_backends
-    if: github.ref == 'refs/heads/main'  # Only run full CD pipeline on main
+    if: github.ref == 'refs/heads/main'  # Only run on main branch
 
     steps:
       - name: Checkout repository
@@ -119,7 +119,7 @@ jobs:
       - name: Logout from Azure
         run: az logout
         if: always()
-  # At the end of your backend_ci.yml
+
   trigger_backend_cd:
     needs: build_and_push_images
     if: github.ref == 'refs/heads/main'
