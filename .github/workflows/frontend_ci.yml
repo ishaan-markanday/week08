@@ -46,11 +46,13 @@ jobs:
         run: az logout
         if: always()
 
-  trigger_frontend_cd:
+    trigger_frontend_cd:
     needs: build_and_push_frontend
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/frontend-cd.yml
     with:
+      product_api_ip: ""
+      order_api_ip: ""
       aks_cluster_name: "ishaanAKS"
       aks_resource_group: "deakinuni"
     secrets:
