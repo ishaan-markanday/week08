@@ -1,5 +1,3 @@
-# week08/.github/workflows/frontend-cd.yml
-
 name: CD - Deploy Frontend to AKS
 
 on:
@@ -22,7 +20,6 @@ on:
         required: true
         default: 'deakinuni'
 
-  # CRITICAL: This is how it's called by frontend_ci.yml
   workflow_call:
     inputs:
       product_api_ip:
@@ -37,10 +34,10 @@ on:
       aks_resource_group:
         required: true
         type: string
-    # CRITICAL FIX: Must define which secrets are required by this workflow
     secrets:
-      azure_credentials: { required: true } # <--- ADDED SECRET HERE
-      
+      azure_credentials:
+        required: true  # <-- must match CI usage
+
 jobs:
   deploy_frontend:
     runs-on: ubuntu-latest
@@ -50,16 +47,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Azure login using the secret passed via workflow_call
       - name: Azure Login
         uses: azure/login@v1
         with:
-          # CRITICAL FIX: Use the secret passed from the caller
-          creds: ${{ secrets.azure_credentials }} 
-
-      # --- OPTIMISATION: REMOVED ACR Login, Inject IPs, and Build/Push steps ---
-      # These steps were already done by frontend_ci.yml (Step 3 in the chain).
-      # The IP linkage will now be done with a robust `kubectl` command.
+          creds: ${{ secrets.azure_credentials }}
 
       - name: Set Kubernetes context (get AKS credentials)
         uses: azure/aks-set-context@v3
@@ -69,22 +60,15 @@ jobs:
 
       - name: Deploy Frontend to AKS (Apply Base Manifest)
         run: |
-          echo "Applying frontend base manifest to AKS cluster: ${{ inputs.aks_cluster_name }}"
           cd k8s/
-          # Deploy the base frontend service/deployment
           kubectl apply -f frontend.yaml
           
-      # CRITICAL NEW STEP: Configure Frontend Deployment with Backend IPs
-      # This is the most reliable way to link the services in AKS
       - name: Configure Frontend Deployment with Backend IPs
         run: |
-          echo "Setting backend IP environment variables on frontend deployment..."
-          # Pass the IPs as environment variables to the live Kubernetes deployment
-          # Note: Adjust 'frontend-w08e1' if your deployment name is different in frontend.yaml
           kubectl set env deployment/frontend-w08e1 \
             PRODUCT_API_URL=http://${{ inputs.product_api_ip }}:80 \
             ORDER_API_URL=http://${{ inputs.order_api_ip }}:80 \
-            --overwrite 
+            --overwrite
 
       - name: Logout from Azure
         run: az logout

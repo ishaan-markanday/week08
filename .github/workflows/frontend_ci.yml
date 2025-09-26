@@ -23,7 +23,6 @@ env:
 jobs:
   build_and_push_frontend:
     runs-on: ubuntu-latest
-    
 
     steps:
       - name: Checkout repository
@@ -48,10 +47,10 @@ jobs:
 
   trigger_frontend_cd:
     needs: build_and_push_frontend
-    if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/frontend-cd.yml #1
+    if: github.ref == 'refs/heads/main' # Only deploy on main
+    uses: ./.github/workflows/frontend-cd.yml
     with:
-      product_api_ip: "4.198.142.187"
+      product_api_ip: "4.198.142.187"   # replace with your backend IP or use workflow output
       order_api_ip: "4.198.109.142"
       aks_cluster_name: "ishaanAKS"
       aks_resource_group: "deakinuni"
