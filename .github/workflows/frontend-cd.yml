@@ -67,7 +67,7 @@ jobs:
           
       - name: Configure Frontend Deployment with Backend IPs
         run: |
-          kubectl set env deployment/frontend-w08e1 \
+          kubectl set env deployment/frontend \
             PRODUCT_API_URL=http://${{ inputs.product_api_ip }}:80 \
             ORDER_API_URL=http://${{ inputs.order_api_ip }}:80 \
             --overwrite
