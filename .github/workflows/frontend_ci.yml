@@ -53,4 +53,4 @@ jobs:
       aks_cluster_name: "ishaanAKS"
       aks_resource_group: "deakinuni"
     secrets:
-      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
+     azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
