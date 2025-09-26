@@ -49,7 +49,7 @@ jobs:
   trigger_frontend_cd:
     needs: build_and_push_frontend
     if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/frontend-cd.yml
+    uses: ./.github/workflows/frontend-cd.yml #1
     with:
       product_api_ip: "20.92.168.148"
       order_api_ip: "20.92.168.149"
