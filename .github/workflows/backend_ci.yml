@@ -119,4 +119,15 @@ jobs:
       - name: Logout from Azure
         run: az logout
         if: always()
+  # At the end of your backend_ci.yml
+  trigger_backend_cd:
+    needs: build_and_push_images
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/backend-cd.yml
+    with:
+      aks_cluster_name: "ishaanAKS"
+      aks_resource_group: "deakinuni"
+      aks_acr_name: "ishaan"
+    secrets:
+      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 #test
