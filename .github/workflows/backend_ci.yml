@@ -2,17 +2,19 @@ name: Backend CI - Test, Build and Push Images to ACR
 
 on:
   workflow_dispatch:
-
-  # CI runs on any push to development or main
   push:
     branches:
       - development
       - main
-
-  # CI runs on PRs to main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend_ci.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend_ci.yml'
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
@@ -35,6 +37,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+
       order_db:
         image: postgres:15
         env:
@@ -50,10 +53,14 @@ jobs:
           - 5433:5432
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -61,6 +68,7 @@ jobs:
             pip install -r "$req"
           done
           pip install pytest httpx
+
       - name: Run product_service tests
         working-directory: backend/product_service
         env:
@@ -70,6 +78,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         run: pytest tests --maxfail=1 --disable-warnings -q
+
       - name: Run order_service tests
         working-directory: backend/order_service
         env:
@@ -86,27 +95,28 @@ jobs:
     if: github.ref == 'refs/heads/main'  # Only run full CD pipeline on main
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Login to ACR
+
+      - name: Login to Azure Container Registry
         run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
+
       - name: Build and Push Product Service Image
         run: |
           docker build -t ${{ env.ACR_LOGIN_SERVER }}/product_service:latest ./backend/product_service/
           docker push ${{ env.ACR_LOGIN_SERVER }}/product_service:latest
+
       - name: Build and Push Order Service Image
         run: |
           docker build -t ${{ env.ACR_LOGIN_SERVER }}/order_service:latest ./backend/order_service/
           docker push ${{ env.ACR_LOGIN_SERVER }}/order_service:latest
-      - name: Trigger Backend CD
-        uses: ./.github/workflows/backend-cd.yml
-        with:
-          aks_cluster_name: 'ishaanAKS'
-          aks_resource_group: 'deakinuni'
-          aks_acr_name: ${{ env.ACR_LOGIN_SERVER }}
-        secrets: inherit
+
       - name: Logout from Azure
         run: az logout
+        if: always()
+#test

@@ -1,4 +1,4 @@
-name: Frontend CI - Build and Push Image
+name: Frontend CI - Build & Push Image (Router)
 
 on:
   workflow_dispatch:
@@ -9,14 +9,9 @@ on:
   pull_request:
     branches:
       - main
-  workflow_call:
-    inputs:
-      product_api_ip: { required: true, type: string }
-      order_api_ip: { required: true, type: string }
-      aks_cluster_name: { required: true, type: string }
-      aks_resource_group: { required: true, type: string }
-    secrets:
-      azure_credentials: { required: true }
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend_ci.yml'
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
@@ -25,25 +20,25 @@ env:
 jobs:
   build_and_push_frontend:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.azure_credentials }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
+
       - name: Build and Push Frontend Image
         run: |
           az acr login --name ${{ env.ACR_LOGIN_SERVER }}
           docker build -t ${{ env.ACR_LOGIN_SERVER }}/frontend:latest ./frontend/
           docker push ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
-      - name: Trigger Frontend CD
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_call'
-        uses: ./.github/workflows/frontend-cd.yml
-        with:
-          product_api_ip: ${{ inputs.product_api_ip }}
-          order_api_ip: ${{ inputs.order_api_ip }}
-          aks_cluster_name: ${{ inputs.aks_cluster_name }}
-          aks_resource_group: ${{ inputs.aks_resource_group }}
-        secrets: inherit
+
       - name: Logout from Azure
         run: az logout
+#test
