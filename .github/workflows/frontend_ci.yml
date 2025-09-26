@@ -1,3 +1,4 @@
+#test
 name: Frontend CI - Build & Push Image (Router)
 
 on:
@@ -8,7 +9,7 @@ on:
       - development
       - main
     paths:
-      - 'frontend/**'
+      - 'frontend/**' 
       - '.github/workflows/frontend_ci.yml'
   pull_request:
     branches:
