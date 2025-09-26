@@ -1,59 +1,87 @@
 # week08/.github/workflows/frontend_ci.yml
 
-name: Frontend CI - Build & Push Image
+name: Frontend CI - Build & Push Image (Router)
 
 on:
-  # Manual trigger
+  # 1. Independent CI Trigger (Development Branch Testing)
   workflow_dispatch:
-
-  # Automatically on pushes to main branch
   push:
     branches:
       - development
-    paths: # Only trigger if changes are in the frontend directory
+      - main
+    paths:
       - 'frontend/**'
-      - '.github/workflows/frontend_ci.yml' # Trigger if this workflow file changes
+      - '.github/workflows/frontend_ci.yml'
   pull_request:
     branches:
-      - main                             
+      - main
     paths:
-      - 'backend/**'
+      - 'frontend/**'
       - '.github/workflows/frontend_ci.yml'
-  
-# Define global environment variables that can be used across jobs
+      
+  # 2. CD Chain Linkage Trigger
+  workflow_call: # <--- CRITICAL FIX: Allows this workflow to be called by backend-cd.yml
+    inputs:
+      product_api_ip: { required: true, type: string } # <--- Receives IP 1
+      order_api_ip: { required: true, type: string }   # <--- Receives IP 2
+      aks_cluster_name: { required: true, type: string }
+      aks_resource_group: { required: true, type: string }
+    secrets:
+      azure_credentials: { required: true }
+
+# Define global environment variables
 env:
-  # ACR Login Server (e.g., myregistry.azurecr.io)
-  # This needs to be set as a GitHub Repository Secret
   ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-  # Dynamically generate image tags based on Git SHA and GitHub Run ID
-  # This provides unique, traceable tags for each image build
   IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
 
 jobs:
+  # JOB 1: CI - Build and Push Frontend Image
   build_and_push_frontend:
     runs-on: ubuntu-latest
-
+    
+    # CRITICAL: This job needs access to the secrets/inputs if called
+    secrets: inherit # <--- NEW: Allows secrets to be passed from the caller
+    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # ... (Existing Checkout, Azure Login, ACR Login, Build/Push steps remain here) ...
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Azure Login
+        uses: azure/login@v1
+        # Uses the secret inherited from the workflow_call trigger
+        with:
+          creds: ${{ secrets.azure_credentials }} 
 
-    # Azure login using a Service Principal secret
-    - name: Azure Login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+      # (Other build steps here...)
 
-    # Login to Azure Container Registry (ACR)
-    - name: Login to Azure Container Registry
-      run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
-
-    # Build and Push Docker image for Frontend
-    - name: Build and Push Frontend Image
-      run: |
-        docker build -t ${{ env.ACR_LOGIN_SERVER }}/frontend:latest ./frontend/
-        docker push ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
-
-    # Logout from Azure for security (runs even if image push fails)
-    - name: Logout from Azure
-      run: az logout
-      if: always()
+      - name: Build and Push Frontend Image
+        # ... (Your Docker build/push commands here) ...
+        run: |
+          docker build -t ${{ env.ACR_LOGIN_SERVER }}/frontend:latest ./frontend/
+          docker push ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
+      
+      # (Other steps...)
+  
+  # ----------------------------------------------------------------------
+  # JOB 2: LINKAGE TO FRONTEND CD (THE FINAL STEP)
+  # ----------------------------------------------------------------------
+  trigger_frontend_cd:
+    runs-on: ubuntu-latest
+    needs: build_and_push_frontend # Wait for the image to be built and pushed
+    
+    # CRITICAL GATE: Only call the CD file when running as part of the main branch CD chain
+    # We use github.event_name == 'workflow_call' to reliably detect the CD chain
+    if: github.event_name == 'workflow_call' || github.ref == 'refs/heads/main' # <--- UPDATED: Ensure it runs when called or when triggered directly by main
+    
+    steps:
+      - name: "Call Frontend CD Workflow (Deploy)"
+        uses: ./.github/workflows/frontend-cd.yml
+        with:
+          # Pass the IPs received by this workflow to the final deployment file
+          product_api_ip: ${{ inputs.product_api_ip }} # <--- Passes received IP
+          order_api_ip: ${{ inputs.order_api_ip }}     # <--- Passes received IP
+          aks_cluster_name: ${{ inputs.aks_cluster_name }}
+          aks_resource_group: ${{ inputs.aks_resource_group }}
+        secrets:
+          azure_credentials: ${{ secrets.azure_credentials }} # Pass the secret along
