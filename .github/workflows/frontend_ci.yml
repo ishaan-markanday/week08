@@ -39,8 +39,7 @@ jobs:
   build_and_push_frontend:
     runs-on: ubuntu-latest
     
-    # CRITICAL FIX 1: REMOVED 'secrets: inherit'
-    # Secrets are accessed directly in the steps below.
+    # Secrets inherit removed (was causing error)
     
     steps:
       - name: Checkout repository
@@ -49,8 +48,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          # Access the secret directly using the repository secret name (AZURE_CREDENTIALS).
-          # This works for both 'push' and 'workflow_call' events.
+          # Use the repository secret name directly.
           creds: ${{ secrets.AZURE_CREDENTIALS }} 
 
       - name: Build and Push Frontend Image
@@ -65,7 +63,7 @@ jobs:
   # ----------------------------------------------------------------------
   trigger_frontend_cd:
     runs-on: ubuntu-latest
-    needs: build_and_push_frontend # Wait for the image to be built and pushed
+    needs: build_and_push_frontend 
     
     # Only call the CD file when running as part of the main branch CD chain
     if: github.event_name == 'workflow_call' || github.ref == 'refs/heads/main' 
@@ -79,7 +77,6 @@ jobs:
           order_api_ip: ${{ inputs.order_api_ip }} 
           aks_cluster_name: ${{ inputs.aks_cluster_name }}
           aks_resource_group: ${{ inputs.aks_resource_group }}
-        # CRITICAL FIX 2: Corrected Indentation for 'secrets:'
-        # 'secrets' must be a sibling to 'uses' and 'with'
+        # CRITICAL FIX: Secrets must be a sibling to 'with:'
         secrets: 
           azure_credentials: ${{ secrets.AZURE_CREDENTIALS }} # Pass the secret along
