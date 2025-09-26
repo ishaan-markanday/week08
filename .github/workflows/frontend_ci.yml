@@ -23,6 +23,7 @@ env:
 jobs:
   build_and_push_frontend:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # Only build on main branch
 
     steps:
       - name: Checkout repository
@@ -43,4 +44,15 @@ jobs:
 
       - name: Logout from Azure
         run: az logout
+        if: always()
+
+  trigger_frontend_cd:
+    needs: build_and_push_frontend
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/frontend-cd.yml
+    with:
+      aks_cluster_name: "ishaanAKS"
+      aks_resource_group: "deakinuni"
+    secrets:
+      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 #test
