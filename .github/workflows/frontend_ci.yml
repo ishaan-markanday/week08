@@ -1,24 +1,14 @@
-#test
-name: Frontend CI - Build & Push Image (Router)
+name: Frontend CI - Build and Push Image
 
 on:
-  # 1. Independent CI Trigger (Development Branch Testing)
   workflow_dispatch:
   push:
     branches:
       - development
       - main
-    paths:
-      - 'frontend/**' 
-      - '.github/workflows/frontend_ci.yml'
   pull_request:
     branches:
       - main
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend_ci.yml'
-      
-  # 2. CD Chain Linkage Trigger (Called by backend-cd.yml)
   workflow_call:
     inputs:
       product_api_ip: { required: true, type: string }
@@ -28,40 +18,32 @@ on:
     secrets:
       azure_credentials: { required: true }
 
-# Define global environment variables
 env:
   ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
   IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
 
 jobs:
-  # JOB 1: CI - Build and Push Frontend Image
   build_and_push_frontend:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
+      - uses: actions/checkout@v4
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }} 
-
+          creds: ${{ secrets.azure_credentials }}
       - name: Build and Push Frontend Image
         run: |
           az acr login --name ${{ env.ACR_LOGIN_SERVER }}
           docker build -t ${{ env.ACR_LOGIN_SERVER }}/frontend:latest ./frontend/
           docker push ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
-  
-  # ----------------------------------------------------------------------
-  # JOB 2: LINKAGE TO FRONTEND CD (THE FINAL STEP)
-  # ----------------------------------------------------------------------
-  trigger_frontend_cd:
-    needs: build_and_push_frontend
-    if: github.event_name == 'workflow_call' || github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/frontend-cd.yml
-    with:
-      product_api_ip: ${{ inputs.product_api_ip }} 
-      order_api_ip: ${{ inputs.order_api_ip }} 
-      aks_cluster_name: ${{ inputs.aks_cluster_name }}
-      aks_resource_group: ${{ inputs.aks_resource_group }}
-    secrets: inherit
+      - name: Trigger Frontend CD
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_call'
+        uses: ./.github/workflows/frontend-cd.yml
+        with:
+          product_api_ip: ${{ inputs.product_api_ip }}
+          order_api_ip: ${{ inputs.order_api_ip }}
+          aks_cluster_name: ${{ inputs.aks_cluster_name }}
+          aks_resource_group: ${{ inputs.aks_resource_group }}
+        secrets: inherit
+      - name: Logout from Azure
+        run: az logout

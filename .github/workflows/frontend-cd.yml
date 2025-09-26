@@ -1,90 +1,37 @@
-# week08/.github/workflows/frontend-cd.yml
-
 name: CD - Deploy Frontend to AKS
 
 on:
-  workflow_dispatch:
-    inputs:
-      product_api_ip:
-        description: 'External IP of Product Service'
-        required: true
-        default: '0.0.0.0' 
-      order_api_ip:
-        description: 'External IP of Order Service'
-        required: true
-        default: '0.0.0.0'
-      aks_cluster_name:
-        description: 'Name of the AKS Cluster to deploy to'
-        required: true
-        default: 'ishaanAKS'
-      aks_resource_group:
-        description: 'Resource Group of the AKS Cluster'
-        required: true
-        default: 'deakinuni'
-
-  # CRITICAL: This is how it's called by frontend_ci.yml
   workflow_call:
     inputs:
-      product_api_ip:
-        required: true
-        type: string
-      order_api_ip:
-        required: true
-        type: string
-      aks_cluster_name:
-        required: true
-        type: string
-      aks_resource_group:
-        required: true
-        type: string
-    # CRITICAL FIX: Must define which secrets are required by this workflow
+      product_api_ip: { required: true, type: string }
+      order_api_ip: { required: true, type: string }
+      aks_cluster_name: { required: true, type: string }
+      aks_resource_group: { required: true, type: string }
     secrets:
-      azure_credentials: { required: true } # <--- ADDED SECRET HERE
-      
+      azure_credentials: { required: true }
+
 jobs:
   deploy_frontend:
     runs-on: ubuntu-latest
     environment: Production
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # Azure login using the secret passed via workflow_call
+      - uses: actions/checkout@v4
       - name: Azure Login
         uses: azure/login@v1
         with:
-          # CRITICAL FIX: Use the secret passed from the caller
-          creds: ${{ secrets.azure_credentials }} 
-
-      # --- OPTIMISATION: REMOVED ACR Login, Inject IPs, and Build/Push steps ---
-      # These steps were already done by frontend_ci.yml (Step 3 in the chain).
-      # The IP linkage will now be done with a robust `kubectl` command.
-
-      - name: Set Kubernetes context (get AKS credentials)
+          creds: ${{ secrets.azure_credentials }}
+      - name: Set Kubernetes context
         uses: azure/aks-set-context@v3
         with:
           resource-group: ${{ inputs.aks_resource_group }}
           cluster-name: ${{ inputs.aks_cluster_name }}
-
-      - name: Deploy Frontend to AKS (Apply Base Manifest)
+      - name: Deploy Frontend to AKS
         run: |
-          echo "Applying frontend base manifest to AKS cluster: ${{ inputs.aks_cluster_name }}"
           cd k8s/
-          # Deploy the base frontend service/deployment
           kubectl apply -f frontend.yaml
-          
-      # CRITICAL NEW STEP: Configure Frontend Deployment with Backend IPs
-      # This is the most reliable way to link the services in AKS
-      - name: Configure Frontend Deployment with Backend IPs
-        run: |
-          echo "Setting backend IP environment variables on frontend deployment..."
-          # Pass the IPs as environment variables to the live Kubernetes deployment
-          # Note: Adjust 'frontend-w08e1' if your deployment name is different in frontend.yaml
           kubectl set env deployment/frontend-w08e1 \
             PRODUCT_API_URL=http://${{ inputs.product_api_ip }}:80 \
             ORDER_API_URL=http://${{ inputs.order_api_ip }}:80 \
-            --overwrite 
-
+            --overwrite
       - name: Logout from Azure
         run: az logout
