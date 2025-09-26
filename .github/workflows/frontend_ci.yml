@@ -51,8 +51,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/frontend-cd.yml #1
     with:
-      product_api_ip: "20.92.168.148"
-      order_api_ip: "20.92.168.149"
+      product_api_ip: "4.198.142.187"
+      order_api_ip: "4.198.109.142"
       aks_cluster_name: "ishaanAKS"
       aks_resource_group: "deakinuni"
     secrets:
