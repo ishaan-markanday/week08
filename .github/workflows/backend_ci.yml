@@ -12,7 +12,7 @@ on:
   push:
     branches:
       - development 
-      - main # <-- UPDATED: Now triggers when code is merged into main
+      - main # <-- UPDATED: Now triggers when code is merged into mai
     paths: # Only trigger if changes are in backend directories
       - 'backend/**'
       - '.github/workflows/backend_ci.yml' # Trigger if this workflow file changes
